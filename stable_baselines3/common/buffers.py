@@ -349,8 +349,8 @@ class RolloutBuffer(BaseBuffer):
 
     def reset(self) -> None:
 
-        self.observations = np.zeros((self.buffer_size, self.n_envs) + self.obs_shape, dtype=np.float32)
-        self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=np.float32)
+        self.observations = np.zeros((self.buffer_size, self.n_envs) + self.obs_shape, dtype=np.float32)    # (5, 1, 4)
+        self.actions = np.zeros((self.buffer_size, self.n_envs, self.action_dim), dtype=np.float32)         # (5, 1, 1)
         self.rewards = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
         self.episode_starts = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
@@ -382,20 +382,21 @@ class RolloutBuffer(BaseBuffer):
         # Convert to numpy
         last_values = last_values.clone().cpu().numpy().flatten()
 
-        last_gae_lam = 0
-        for step in reversed(range(self.buffer_size)):
+        R = last_values
+        self.returns = np.zeros((self.buffer_size, self.n_envs), dtype=np.float32)
+        
+        for step in reversed(range(self.buffer_size)):  # buffer_size 5
             if step == self.buffer_size - 1:
-                next_non_terminal = 1.0 - dones
-                next_values = last_values
+                next_non_terminal = 1.0 - dones         # masks, dones=array([False])
             else:
-                next_non_terminal = 1.0 - self.episode_starts[step + 1]
-                next_values = self.values[step + 1]
-            delta = self.rewards[step] + self.gamma * next_values * next_non_terminal - self.values[step]
-            last_gae_lam = delta + self.gamma * self.gae_lambda * next_non_terminal * last_gae_lam
-            self.advantages[step] = last_gae_lam
+                next_non_terminal = 1.0 - self.episode_starts[step + 1] # next_non_terminal array([1.]); 
+            
+            R = self.rewards[step] + self.gamma * R * next_non_terminal
+            self.returns[step] = R
+            self.advantages[step] = R - self.values[step]
+
         # TD(lambda) estimator, see Github PR #375 or "Telescoping in TD(lambda)"
         # in David Silver Lecture 4: https://www.youtube.com/watch?v=PnHCvfgC_ZA
-        self.returns = self.advantages + self.values
 
     def add(
         self,

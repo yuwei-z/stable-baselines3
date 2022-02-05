@@ -101,7 +101,7 @@ class BaseAlgorithm(ABC):
         sde_sample_freq: int = -1,
         supported_action_spaces: Optional[Tuple[gym.spaces.Space, ...]] = None,
     ):
-
+        print(f'{"*"*60}\n********** you are instantiating revised RL agent **********\n{"*"*60}\n')
         if isinstance(policy, str) and policy_base is not None:
             self.policy_class = get_policy_from_name(policy_base, policy)
         else:
